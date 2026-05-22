@@ -7,6 +7,7 @@ from fastapi.responses import FileResponse
 from dotenv import load_dotenv
 
 from src.query_service import QueryService
+from src.llm_service import LLMService
 from api.models import (
     LearningPathRequest,
     LearningPathResponse,
@@ -36,16 +37,20 @@ app.add_middleware(
 
 # Initialize global services
 query_service = None
+llm_service = None
 
 @app.on_event("startup")
 def startup_event():
-    global query_service
+    global query_service, llm_service
     uri = os.getenv("NEO4J_URI", "bolt://localhost:7687")
     user = os.getenv("NEO4J_USER", "neo4j")
     password = os.getenv("NEO4J_PASSWORD", "password")
     
     logger.info("Initializing QueryService...")
     query_service = QueryService(uri, user, password)
+    
+    logger.info("Initializing LLMService...")
+    llm_service = LLMService(query_service)
 
 @app.on_event("shutdown")
 def shutdown_event():
@@ -100,11 +105,18 @@ def get_gap_analysis(request: GapAnalysisRequest):
         logger.error(f"Internal server error: {e}")
         raise HTTPException(status_code=500, detail="Internal server error")
 
-# Chat endpoint placeholder for Part C
+# Chat endpoint for Part C
 @app.post("/api/chat", response_model=ChatResponse)
 def chat_endpoint(request: ChatRequest):
-    # To be implemented in Part C
-    return ChatResponse(intent="unknown", reply="Natural language interface coming soon.")
+    try:
+        result = llm_service.process_chat(request.message)
+        return ChatResponse(
+            intent=result.get("intent", "unknown"),
+            reply=result.get("reply", "Something went wrong.")
+        )
+    except Exception as e:
+        logger.error(f"Chat API internal error: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 # --- Static Files ---
 
