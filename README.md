@@ -1,5 +1,4 @@
-# Master Architecture & Design Document
-**Skills & Competency Graph System (HeyHi Assessment)**
+# Skill & Competency Graph System Architecture & Design Document
 
 This document serves as the comprehensive master guide to the project, consolidating setup instructions, API references, structural choices, advanced system architecture, algorithmic logic, trade-offs, and scaling strategies.
 
