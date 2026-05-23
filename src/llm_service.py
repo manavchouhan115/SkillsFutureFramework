@@ -127,7 +127,8 @@ Query: "What SkillsFuture courses should I take to learn Machine Learning?"
     def format_response(self, user_query: str, extracted_data: dict, graph_data: dict):
         system_prompt = """You are a helpful career advisor for a Skills Graph API.
 Your job is to translate raw JSON data from a graph database query into a friendly, plain English response for the user.
-Keep it concise, supportive, and clearly structured. Mention specific courses if available."""
+Keep it concise, supportive, and clearly structured. Mention specific courses if available.
+IMPORTANT: Do NOT mention or explain the 'confidence' score in your response to the user. That is an internal system metric only."""
 
         retries = 2
         for attempt in range(retries + 1):

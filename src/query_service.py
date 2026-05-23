@@ -25,9 +25,24 @@ class QueryService:
     def get_full_graph(self):
         """Returns the entire graph structure for visualization."""
         with self.get_driver().session() as session:
-            # Fetch all valid nodes
-            nodes_res = session.run("MATCH (n) WHERE n.id IS NOT NULL RETURN n.id as id, n.name as name, labels(n)[0] as group")
-            nodes = [{"id": r["id"], "name": r["name"], "group": r["group"]} for r in nodes_res]
+            # Fetch all valid nodes and their properties
+            nodes_res = session.run("MATCH (n) WHERE n.id IS NOT NULL RETURN n.id as id, n.name as name, labels(n)[0] as group, properties(n) as props")
+            nodes = []
+            for r in nodes_res:
+                props = r["props"]
+                # Dynamically build the tooltip using plain text for native browser support
+                title_lines = [f"{str(k).capitalize()}: {v}" for k, v in props.items() if k not in ["id", "name"] and v]
+                if title_lines:
+                    title_text = f"{r['name']}\n{'-'*30}\n" + "\n".join(title_lines)
+                else:
+                    title_text = f"[{r['group']}] {r['name']}"
+                
+                nodes.append({
+                    "id": r["id"], 
+                    "name": r["name"], 
+                    "group": r["group"],
+                    "title": title_text
+                })
             
             # Fetch all relationships
             edges_res = session.run("MATCH (n)-[r]->(m) WHERE n.id IS NOT NULL AND m.id IS NOT NULL RETURN n.id as source, m.id as target, type(r) as type")
