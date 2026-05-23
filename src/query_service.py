@@ -22,6 +22,19 @@ class QueryService:
         if self._driver:
             self._driver.close()
 
+    def get_full_graph(self):
+        """Returns the entire graph structure for visualization."""
+        with self.get_driver().session() as session:
+            # Fetch all valid nodes
+            nodes_res = session.run("MATCH (n) WHERE n.id IS NOT NULL RETURN n.id as id, n.name as name, labels(n)[0] as group")
+            nodes = [{"id": r["id"], "name": r["name"], "group": r["group"]} for r in nodes_res]
+            
+            # Fetch all relationships
+            edges_res = session.run("MATCH (n)-[r]->(m) WHERE n.id IS NOT NULL AND m.id IS NOT NULL RETURN n.id as source, m.id as target, type(r) as type")
+            edges = [{"source": r["source"], "target": r["target"], "type": r["type"]} for r in edges_res]
+            
+            return {"nodes": nodes, "edges": edges}
+
     def _get_missing_skills_graph(self, session, current_skills, target_role_id):
         # 1. Get all skills required by the role
         result = session.run("""
@@ -196,5 +209,67 @@ class QueryService:
         except Exception as e:
             logger.error(f"Error in get_gap_analysis: {e}")
             raise
+
+    def get_transferable_skills(self, source_sector_id: str, target_sector_id: str = None) -> dict:
+        """Finds highly transferable skills from the source sector."""
+        if not source_sector_id:
+            raise ValueError("Source sector must be provided.")
+            
+        with self.get_driver().session() as session:
+            query = """
+                MATCH (sec:Sector {id: $source})
+                OPTIONAL MATCH (sec)-[:HAS_TRACK]->(t:SkillTrack)-[:CONTAINS_SKILL]->(s:Skill)
+                WHERE s.transferability IN ['High', 'Medium']
+                RETURN sec.name as sector_name, s.id as skill_id, s.name as skill_name, s.transferability as transferability
+            """
+            result = session.run(query, source=source_sector_id)
+            skills = []
+            sector_name = None
+            
+            for record in result:
+                if not sector_name and record["sector_name"]:
+                    sector_name = record["sector_name"]
+                if record["skill_id"]:
+                    skills.append({
+                        "skill_id": record["skill_id"], 
+                        "skill_name": record["skill_name"], 
+                        "transferability": record["transferability"]
+                    })
+                    
+            return {
+                "source_sector": sector_name or source_sector_id,
+                "transferable_skills": skills,
+                "total_skills": len(skills)
+            }
+
+    def get_courses_for_skill(self, target_skill_id: str) -> dict:
+        """Finds courses that teach a specific skill."""
+        if not target_skill_id:
+            raise ValueError("Target skill must be provided.")
+            
+        with self.get_driver().session() as session:
+            query = """
+                MATCH (c:Course)-[:TEACHES]->(s:Skill {id: $skill_id})
+                RETURN c.id as course_id, c.name as course_name, c.provider as provider, s.name as skill_name
+            """
+            result = session.run(query, skill_id=target_skill_id)
+            courses = []
+            skill_name = None
+            
+            for record in result:
+                if not skill_name and record["skill_name"]:
+                    skill_name = record["skill_name"]
+                courses.append({
+                    "course_id": record["course_id"],
+                    "course_name": record["course_name"],
+                    "provider": record["provider"]
+                })
+                
+            return {
+                "target_skill_id": target_skill_id,
+                "target_skill_name": skill_name or target_skill_id,
+                "courses": courses,
+                "total_courses": len(courses)
+            }
 
 # Singleton instance initialization will be done in the FastAPI app

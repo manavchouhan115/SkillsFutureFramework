@@ -17,6 +17,7 @@ class LLMService:
         # Load ID mappings to inject into the prompt
         self.role_map = {}
         self.skill_map = {}
+        self.sector_map = {}
         try:
             with self.query_service.get_driver().session() as session:
                 roles = session.run("MATCH (r:JobRole) RETURN r.id as id, r.name as name")
@@ -26,27 +27,32 @@ class LLMService:
                 skills = session.run("MATCH (s:Skill) RETURN s.id as id, s.name as name")
                 for record in skills:
                     self.skill_map[record["name"]] = record["id"]
+                    
+                sectors = session.run("MATCH (s:Sector) RETURN s.id as id, s.name as name")
+                for record in sectors:
+                    self.sector_map[record["name"]] = record["id"]
         except Exception as e:
             logger.warning(f"Could not load vocabulary from Neo4j: {e}")
 
     def _get_extraction_prompt(self):
-        vocab_str = f"Roles: {json.dumps(self.role_map)}\nSkills: {json.dumps(self.skill_map)}"
+        vocab_str = f"Roles: {json.dumps(self.role_map)}\nSkills: {json.dumps(self.skill_map)}\nSectors/Economies: {json.dumps(self.sector_map)}"
         
         return f"""You are an intent extraction engine for a Skills Graph API.
 Your task is to parse a user's natural language query into a strict JSON object.
 
-Valid Intents: "learning_path", "gap_analysis", "transferable_skills"
+Valid Intents: "learning_path", "gap_analysis", "transferable_skills", "find_courses"
 
 Available Vocabulary Mapping:
 {vocab_str}
 
 Output JSON Schema:
 {{
-  "intent": "learning_path" | "gap_analysis" | "transferable_skills",
+  "intent": "learning_path" | "gap_analysis" | "transferable_skills" | "find_courses",
   "target_role": "ROL-XX" | null,
   "current_skills": ["SKL-XX", ...] | [],
   "source_sector": "SEC-XX" | null,
   "target_sector": "SEC-XX" | null,
+  "target_skill": "SKL-XX" | null,
   "confidence": 0.0 to 1.0
 }}
 
@@ -64,17 +70,8 @@ Query: "What skills do I need to become a Data Scientist?"
   "current_skills": [],
   "source_sector": null,
   "target_sector": null,
+  "target_skill": null,
   "confidence": 0.95
-}}
-
-Query: "I want to be an AI Engineer. I already know Python and Machine Learning."
-{{
-  "intent": "learning_path",
-  "target_role": "ROL-02",
-  "current_skills": ["SKL-01", "SKL-04"],
-  "source_sector": null,
-  "target_sector": null,
-  "confidence": 0.9
 }}
 
 Query: "I know Data Analytics. What are my gaps for becoming a Data Engineer?"
@@ -84,37 +81,19 @@ Query: "I know Data Analytics. What are my gaps for becoming a Data Engineer?"
   "current_skills": ["SKL-06"],
   "source_sector": null,
   "target_sector": null,
+  "target_skill": null,
   "confidence": 0.95
 }}
 
-Query: "Compare my profile with the AI Engineer role. My skills: Python."
+Query: "What SkillsFuture courses should I take to learn Machine Learning?"
 {{
-  "intent": "gap_analysis",
-  "target_role": "ROL-02",
-  "current_skills": ["SKL-01"],
+  "intent": "find_courses",
+  "target_role": null,
+  "current_skills": [],
   "source_sector": null,
   "target_sector": null,
-  "confidence": 0.9
-}}
-
-Query: "Which ICT skills are most transferable to Financial Services?"
-{{
-  "intent": "transferable_skills",
-  "target_role": null,
-  "current_skills": [],
-  "source_sector": "SEC-01",
-  "target_sector": "SEC-02",
-  "confidence": 0.85
-}}
-
-Query: "Can you transfer skills from Healthcare to Manufacturing?"
-{{
-  "intent": "transferable_skills",
-  "target_role": null,
-  "current_skills": [],
-  "source_sector": "SEC-03",
-  "target_sector": "SEC-04",
-  "confidence": 0.85
+  "target_skill": "SKL-04",
+  "confidence": 0.95
 }}
 """
 
@@ -202,7 +181,18 @@ Keep it concise, supportive, and clearly structured. Mention specific courses if
                 graph_data = self.query_service.get_gap_analysis(current_skills, target_role)
 
             elif intent == "transferable_skills":
-                graph_data = {"message": "Transferable skills querying is conceptually supported but graph execution logic for sector-to-sector transferability is not yet fully implemented in the backend."}
+                source_sector = extracted.get("source_sector")
+                target_sector = extracted.get("target_sector")
+                if not source_sector:
+                    return {"intent": intent, "reply": "I need to know which sector you are transferring from. E.g., 'Healthcare'."}
+                graph_data = self.query_service.get_transferable_skills(source_sector, target_sector)
+
+            elif intent == "find_courses":
+                target_skill = extracted.get("target_skill")
+                if not target_skill:
+                    return {"intent": intent, "reply": "I need to know which specific skill you want to learn. E.g., 'Machine Learning'."}
+                graph_data = self.query_service.get_courses_for_skill(target_skill)
+
             else:
                 return {"intent": "unknown", "reply": "I couldn't recognize that request."}
                 

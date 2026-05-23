@@ -55,3 +55,4 @@ class ChatRequest(BaseModel):
 class ChatResponse(BaseModel):
     intent: Optional[str] = None
     reply: str
+    raw_graph_data: Optional[dict] = None

@@ -112,10 +112,19 @@ def chat_endpoint(request: ChatRequest):
         result = llm_service.process_chat(request.message)
         return ChatResponse(
             intent=result.get("intent", "unknown"),
-            reply=result.get("reply", "Something went wrong.")
+            reply=result.get("reply", "Something went wrong."),
+            raw_graph_data=result.get("raw_graph_data", {})
         )
     except Exception as e:
         logger.error(f"Chat API internal error: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+@app.get("/api/graph")
+def get_full_graph_endpoint():
+    try:
+        return query_service.get_full_graph()
+    except Exception as e:
+        logger.error(f"Full graph API internal error: {e}")
         raise HTTPException(status_code=500, detail="Internal server error")
 
 # --- Static Files ---
