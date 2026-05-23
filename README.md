@@ -1,5 +1,7 @@
 # Skill & Competency Graph System Architecture & Design Document
 
+An AI-powered, graph-based learning platform that maps the SkillsFuture dataset into Neo4j to compute optimal learning paths and intelligent gap analyses. It features a natural language LLM interface paired with an interactive, real-time graph visualization.
+
 ---
 
 ## 1. Architecture & Key Features
