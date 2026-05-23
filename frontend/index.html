@@ -1,18 +1,19 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AI Skills Graph Explorer</title>
-    
+
     <!-- Google Fonts: Inter -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    
+
     <!-- vis-network for graph visualization -->
     <script type="text/javascript" src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
-    
+
     <style>
         :root {
             --bg-gradient-start: #0f172a;
@@ -25,7 +26,7 @@
             --accent-hover: #2563eb;
             --user-msg-bg: #3b82f6;
             --bot-msg-bg: rgba(51, 65, 85, 0.8);
-            
+
             /* Node Colors */
             --color-role: #a855f7;
             --color-skill: #3b82f6;
@@ -44,7 +45,7 @@
             color: var(--text-primary);
             overflow: hidden;
         }
-        
+
         /* Left Panel - Chat Interface */
         #chat-panel {
             width: 400px;
@@ -54,17 +55,17 @@
             border-right: 1px solid var(--border-color);
             display: flex;
             flex-direction: column;
-            box-shadow: 5px 0 25px rgba(0,0,0,0.3);
+            box-shadow: 5px 0 25px rgba(0, 0, 0, 0.3);
             z-index: 10;
         }
-        
+
         .header {
             padding: 24px 20px;
             background: rgba(15, 23, 42, 0.4);
             border-bottom: 1px solid var(--border-color);
             text-align: center;
         }
-        
+
         .header h2 {
             margin: 0;
             font-size: 20px;
@@ -74,7 +75,7 @@
             -webkit-text-fill-color: transparent;
             letter-spacing: -0.5px;
         }
-        
+
         #chat-history {
             flex: 1;
             padding: 24px 20px;
@@ -88,11 +89,12 @@
         #chat-history::-webkit-scrollbar {
             width: 6px;
         }
+
         #chat-history::-webkit-scrollbar-thumb {
             background: rgba(255, 255, 255, 0.2);
             border-radius: 10px;
         }
-        
+
         .message {
             max-width: 85%;
             padding: 14px 18px;
@@ -106,9 +108,12 @@
         }
 
         @keyframes slideUp {
-            to { opacity: 1; transform: translateY(0); }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
         }
-        
+
         .msg-user {
             background: var(--user-msg-bg);
             color: white;
@@ -116,15 +121,15 @@
             border-bottom-right-radius: 4px;
             box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
         }
-        
+
         .msg-bot {
             background: var(--bot-msg-bg);
             color: var(--text-primary);
             align-self: flex-start;
             border-bottom-left-radius: 4px;
-            border: 1px solid rgba(255,255,255,0.05);
+            border: 1px solid rgba(255, 255, 255, 0.05);
         }
-        
+
         .msg-bot pre {
             white-space: pre-wrap;
             margin: 0;
@@ -139,7 +144,7 @@
             gap: 12px;
             align-items: center;
         }
-        
+
         #user-input {
             flex: 1;
             padding: 14px 16px;
@@ -158,7 +163,7 @@
             background: rgba(255, 255, 255, 0.1);
             box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
         }
-        
+
         button {
             padding: 0 24px;
             height: 48px;
@@ -172,26 +177,26 @@
             font-family: 'Inter', sans-serif;
             transition: all 0.2s ease;
         }
-        
+
         button:hover {
             background: var(--accent-hover);
             transform: translateY(-1px);
             box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
         }
-        
+
         /* Right Panel - Graph Visualization */
         #graph-panel {
             flex: 1;
             position: relative;
-            background-image: radial-gradient(circle at 50% 50%, rgba(255,255,255,0.03) 1px, transparent 1px);
+            background-image: radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
             background-size: 30px 30px;
         }
-        
+
         #mynetwork {
             width: 100%;
             height: 100%;
         }
-        
+
         .loader {
             display: none;
             position: absolute;
@@ -200,14 +205,16 @@
             transform: translate(-50%, -50%);
             width: 50px;
             height: 50px;
-            border: 3px solid rgba(255,255,255,0.1);
+            border: 3px solid rgba(255, 255, 255, 0.1);
             border-radius: 50%;
             border-top-color: var(--accent-primary);
             animation: spin 1s ease-in-out infinite;
         }
-        
+
         @keyframes spin {
-            to { transform: translate(-50%, -50%) rotate(360deg); }
+            to {
+                transform: translate(-50%, -50%) rotate(360deg);
+            }
         }
 
         #reset-btn {
@@ -222,11 +229,59 @@
             padding: 8px 16px;
             height: auto;
             color: var(--text-primary);
-            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
         }
+
         #reset-btn:hover {
             background: var(--accent-primary);
             border-color: var(--accent-primary);
+        }
+
+        #search-container {
+            position: absolute;
+            top: 24px;
+            left: 30px;
+            z-index: 100;
+            display: flex;
+            gap: 8px;
+            background: rgba(15, 23, 42, 0.7);
+            backdrop-filter: blur(8px);
+            padding: 8px;
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+        }
+
+        #search-input {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 4px;
+            color: white;
+            padding: 6px 12px;
+            font-family: 'Inter', sans-serif;
+            outline: none;
+            width: 200px;
+        }
+
+        #search-input:focus {
+            border-color: var(--accent-primary);
+        }
+
+        #search-btn {
+            background: var(--accent-primary);
+            color: white;
+            border: none;
+            border-radius: 4px;
+            padding: 6px 16px;
+            cursor: pointer;
+            font-family: 'Inter', sans-serif;
+            font-weight: 600;
+            transition: all 0.2s ease;
+        }
+
+        #search-btn:hover {
+            background: var(--accent-hover);
+            transform: translateY(-1px);
         }
 
         .legend {
@@ -238,7 +293,7 @@
             border: 1px solid var(--border-color);
             padding: 20px;
             border-radius: 12px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
             font-size: 13px;
         }
 
@@ -270,44 +325,68 @@
         }
     </style>
 </head>
+
 <body>
 
     <!-- Left Panel: Chat -->
     <div id="chat-panel">
         <div class="header">
-            <h2>AI Skills Advisor</h2>
-            <div style="font-size: 12px; color: var(--text-secondary); margin-top: 6px;">Powered by Groq LLaMA-3 & Neo4j</div>
+            <h2>Skills Advisor</h2>
+
         </div>
-        
+
         <div id="chat-history">
             <div class="message msg-bot">
-                Hello! I am your AI Career Advisor. I can map out optimal learning paths and visualize how skills connect.<br><br>
+                Hello! I am your Career Advisor. I can map out optimal learning paths and visualize how skills
+                connect.<br><br>
                 Try asking me:<br>
                 <span style="color: #60a5fa;">• "What skills do I need to become an AI Engineer?"</span><br>
                 <span style="color: #60a5fa;">• "I know Python. What are my gaps for becoming a Data Scientist?"</span>
             </div>
         </div>
-        
+
         <div class="chat-input-container">
-            <input type="text" id="user-input" placeholder="Ask about a career path..." onkeypress="handleKeyPress(event)" autocomplete="off">
+            <input type="text" id="user-input" placeholder="Ask about a career path..."
+                onkeypress="handleKeyPress(event)" autocomplete="off">
             <button onclick="sendMessage()">Send</button>
         </div>
     </div>
 
     <!-- Right Panel: Graph -->
     <div id="graph-panel">
+        <div id="search-container">
+            <input type="text" id="search-input" placeholder="Search nodes..." onkeypress="handleSearchKeyPress(event)" autocomplete="off">
+            <button id="search-btn" onclick="searchGraph()">Search</button>
+        </div>
         <button id="reset-btn" onclick="loadFullGraph()">⟲ Reset Full Graph</button>
         <div class="loader" id="loader"></div>
         <div id="mynetwork"></div>
-        
+
         <div class="legend">
             <div class="legend-title">Graph Legend</div>
             <div>
-                <div class="legend-item"><div class="color-box" style="background: var(--color-role); box-shadow: 0 0 10px var(--color-role);"></div> Target Role</div>
-                <div class="legend-item"><div class="color-box" style="background: var(--color-skill); box-shadow: 0 0 10px var(--color-skill);"></div> Skill</div>
-                <div class="legend-item"><div class="color-box" style="background: var(--color-course); box-shadow: 0 0 10px var(--color-course);"></div> Course</div>
-                <div class="legend-item"><div class="color-box" style="background: var(--color-sector); box-shadow: 0 0 10px var(--color-sector);"></div> Sector</div>
-                <div class="legend-item"><div class="color-box" style="background: var(--color-track); box-shadow: 0 0 10px var(--color-track);"></div> Skill Track</div>
+                <div class="legend-item">
+                    <div class="color-box"
+                        style="background: var(--color-role); box-shadow: 0 0 10px var(--color-role);"></div> Target
+                    Role
+                </div>
+                <div class="legend-item">
+                    <div class="color-box"
+                        style="background: var(--color-skill); box-shadow: 0 0 10px var(--color-skill);"></div> Skill
+                </div>
+                <div class="legend-item">
+                    <div class="color-box"
+                        style="background: var(--color-course); box-shadow: 0 0 10px var(--color-course);"></div> Course
+                </div>
+                <div class="legend-item">
+                    <div class="color-box"
+                        style="background: var(--color-sector); box-shadow: 0 0 10px var(--color-sector);"></div> Sector
+                </div>
+                <div class="legend-item">
+                    <div class="color-box"
+                        style="background: var(--color-track); box-shadow: 0 0 10px var(--color-track);"></div> Skill
+                    Track
+                </div>
             </div>
         </div>
     </div>
@@ -316,6 +395,7 @@
         // Vis.js Graph Initialization
         const container = document.getElementById('mynetwork');
         let network = null;
+        let currentNodesDataset = null;
 
         const defaultOptions = {
             nodes: {
@@ -355,12 +435,12 @@
             ...defaultOptions,
             physics: {
                 enabled: true,
-                barnesHut: { 
-                    gravitationalConstant: -2500, 
-                    centralGravity: 0.15, 
+                barnesHut: {
+                    gravitationalConstant: -2500,
+                    centralGravity: 0.15,
                     springLength: 250,
-                    springConstant: 0.03,
-                    damping: 0.3
+                    springConstant: 0.01,
+                    damping: 0.8
                 },
                 stabilization: {
                     enabled: true,
@@ -370,12 +450,34 @@
             }
         };
 
+        function setupDoubleClickIsolation(net, nodesDataset) {
+            net.on("doubleClick", function (params) {
+                if (params.nodes.length > 0) {
+                    const clickedNodeId = params.nodes[0];
+                    const connectedNodes = net.getConnectedNodes(clickedNodeId);
+                    const keepNodes = new Set([...connectedNodes, clickedNodeId]);
+
+                    const updates = nodesDataset.get().map(n => ({
+                        id: n.id,
+                        hidden: !keepNodes.has(n.id)
+                    }));
+                    nodesDataset.update(updates);
+                } else {
+                    const updates = nodesDataset.get().map(n => ({
+                        id: n.id,
+                        hidden: false
+                    }));
+                    nodesDataset.update(updates);
+                }
+            });
+        }
+
         async function loadFullGraph() {
             try {
                 document.getElementById('loader').style.display = 'block';
                 const response = await fetch('/api/graph');
                 const data = await response.json();
-                
+
                 const nodes = new vis.DataSet(data.nodes.map(n => {
                     let color = '#334155'; // default dark gray
                     if (n.group === 'JobRole') color = '#a855f7';
@@ -383,24 +485,26 @@
                     else if (n.group === 'Course') color = '#10b981';
                     else if (n.group === 'Sector') color = '#f97316';
                     else if (n.group === 'SkillTrack') color = '#ec4899';
-                    
-                    return { 
-                        id: n.id, 
-                        label: `<b>${n.name}</b>`, 
-                        color: { 
-                            background: color, 
+
+                    return {
+                        id: n.id,
+                        label: `<b>${n.name}</b>`,
+                        color: {
+                            background: color,
                             border: color,
                             highlight: { background: color, border: '#ffffff' }
-                        } 
+                        }
                     };
                 }));
-                
+
                 const edges = new vis.DataSet(data.edges.map(e => ({
                     from: e.source, to: e.target, label: e.type
                 })));
-                
+
                 if (network) network.destroy();
-                network = new vis.Network(container, {nodes, edges}, fullGraphOptions);
+                currentNodesDataset = nodes;
+                network = new vis.Network(container, { nodes, edges }, fullGraphOptions);
+                setupDoubleClickIsolation(network, nodes);
             } catch (error) {
                 console.error("Error loading full graph", error);
             } finally {
@@ -425,15 +529,15 @@
                     else if (group === 'skill') color = '#3b82f6';
                     else if (group === 'course') color = '#10b981';
 
-                    nodes.add({ 
-                        id: id, 
-                        label: `<b>${label}</b>`, 
-                        color: { 
-                            background: color, 
+                    nodes.add({
+                        id: id,
+                        label: `<b>${label}</b>`,
+                        color: {
+                            background: color,
                             border: color,
                             highlight: { background: color, border: '#ffffff' }
-                        }, 
-                        level: level 
+                        },
+                        level: level
                     });
                     addedNodes.add(id);
                 }
@@ -457,7 +561,7 @@
                         edges.add({ from: course.course_id, to: step.skill_id, label: 'TEACHES' });
                     });
                 });
-            } 
+            }
             else if (intent === 'gap_analysis' && graphData.skill_gaps) {
                 if (graphData.target_role) {
                     addNode(graphData.target_role, "Target Role\n" + graphData.target_role, 'role', 100);
@@ -476,7 +580,7 @@
             }
             else if (intent === 'find_courses' && graphData.courses) {
                 addNode(graphData.target_skill_id, "Target Skill\n" + graphData.target_skill_name, 'skill', 10);
-                
+
                 graphData.courses.forEach((course, index) => {
                     addNode(course.course_id, course.course_name, 'course', 5);
                     edges.add({ from: course.course_id, to: graphData.target_skill_id, label: 'TEACHES' });
@@ -485,12 +589,12 @@
             else if (intent === 'transferable_skills' && graphData.transferable_skills) {
                 // For transferable skills, just show them clustered around the sector
                 let sectorId = "SEC-" + graphData.source_sector;
-                nodes.add({ 
-                    id: sectorId, 
-                    label: `<b>${graphData.source_sector} Sector</b>`, 
-                    color: { background: '#f97316', border: '#f97316' } 
+                nodes.add({
+                    id: sectorId,
+                    label: `<b>${graphData.source_sector} Sector</b>`,
+                    color: { background: '#f97316', border: '#f97316' }
                 });
-                
+
                 graphData.transferable_skills.forEach(skill => {
                     addNode(skill.skill_id, skill.skill_name + "\n(" + skill.transferability + ")", 'skill');
                     edges.add({ from: sectorId, to: skill.skill_id, label: 'CONTAINS' });
@@ -498,12 +602,14 @@
             }
 
             const data = { nodes: nodes, edges: edges };
-            
+
             if (network) {
                 network.destroy();
             }
             // Use hierarchy options for isolated paths
+            currentNodesDataset = data.nodes;
             network = new vis.Network(container, data, hierarchyOptions);
+            setupDoubleClickIsolation(network, data.nodes);
         }
 
         // Chat Logic
@@ -517,7 +623,7 @@
             const history = document.getElementById('chat-history');
             const div = document.createElement('div');
             div.className = 'message ' + (sender === 'user' ? 'msg-user' : 'msg-bot');
-            
+
             if (sender === 'bot') {
                 const pre = document.createElement('pre');
                 // Basic markdown bold and link replacement
@@ -527,7 +633,7 @@
             } else {
                 div.innerText = text;
             }
-            
+
             history.appendChild(div);
             history.scrollTop = history.scrollHeight;
         }
@@ -550,7 +656,7 @@
 
                 const data = await response.json();
                 appendMessage(data.reply, 'bot');
-                
+
                 if (data.raw_graph_data && Object.keys(data.raw_graph_data).length > 0) {
                     drawGraph(data.raw_graph_data, data.intent);
                 }
@@ -562,6 +668,47 @@
                 document.getElementById('loader').style.display = 'none';
             }
         }
+
+        function handleSearchKeyPress(e) {
+            if (e.key === 'Enter') {
+                searchGraph();
+            }
+        }
+
+        function searchGraph() {
+            const input = document.getElementById('search-input');
+            const keyword = input.value.trim().toLowerCase();
+            
+            if (!currentNodesDataset) return;
+            
+            if (!keyword) {
+                // Reset all nodes to visible
+                const updates = currentNodesDataset.get().map(n => ({
+                    id: n.id,
+                    hidden: false
+                }));
+                currentNodesDataset.update(updates);
+                return;
+            }
+
+            let found = false;
+            const updates = currentNodesDataset.get().map(n => {
+                const labelText = n.label.toLowerCase();
+                const matches = labelText.includes(keyword);
+                if (matches) found = true;
+                return {
+                    id: n.id,
+                    hidden: !matches
+                };
+            });
+            
+            if (found) {
+                currentNodesDataset.update(updates);
+            } else {
+                alert("No nodes found for keyword: " + input.value.trim());
+            }
+        }
     </script>
 </body>
+
 </html>
