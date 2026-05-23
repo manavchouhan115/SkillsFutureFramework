@@ -1,15 +1,15 @@
 # Skill & Competency Graph System Architecture & Design Document
 
-This document serves as the comprehensive master guide to the project, consolidating setup instructions, API references, structural choices, advanced system architecture, algorithmic logic, trade-offs, and scaling strategies.
-
 ---
 
-## 1. Features
-- **Graph Database Backend**: Data is ingested into Neo4j with a robust schema separating Sectors, SkillTracks, Skills, JobRoles, and Courses.
-- **Topological Learning Paths**: Computes the optimal sequence of skills a learner must acquire to reach a target role, respecting prerequisites.
-- **Intelligent Gap Analysis**: Ranks skill gaps based on an "unlock score" and distance from current skills to prioritize foundational skills.
-- **LLM Integration**: Translate natural language questions (e.g., "What do I need to become an AI Engineer?") into precise graph queries.
-- **Interactive Visualization**: A web-based `vis-network` UI that displays a live graph alongside the AI Chatbot.
+## 1. Architecture & Key Features
+
+The system operates on a highly decoupled **4-Part Pipeline**, built for speed, accuracy, and interactive visualization:
+
+*   **Data Layer (Neo4j Graph Database)**: Data is natively modeled as a highly connected graph separating Sectors, SkillTracks, Skills, JobRoles, and Courses.
+*   **Query Engine (Python + Cypher)**: The `QueryService` executes exact deterministic mathematics. It runs Topological Sorting algorithms to compute optimal learning paths and intelligent gap analyses (ranking missing skills based on calculated "unlock scores" and distance).
+*   **LLM Router (Groq LLaMA-3)**: Acts as an intelligent translation layer. It translates natural language input (e.g., "What do I need to become an AI Engineer?") into structured intents, routes the request to the Query Engine, and translates mathematical results back into conversational English.
+*   **Visualization (Vanilla JS + vis-network)**: A completely decoupled `index.html` frontend that renders the graph outputs in real-time alongside the AI Chatbot.
 
 ---
 
@@ -36,7 +36,7 @@ HeyHiAssessment/
 │   └── unit/             # Pytest suite for internal graph logic
 ├── docker-compose.yml    # Docker configuration for Neo4j database
 ├── requirements.txt      # Python dependencies
-└── Master.md             # This document
+└── README.md             # This document
 ```
 
 ---
@@ -127,25 +127,9 @@ python -m pytest tests/unit
 python tests/integration/test_all_queries.py
 ```
 
-**Common Issues**
-- **ConnectionError (503)**: If the API returns a 503 error, the Neo4j database is likely down. Ensure `docker-compose up -d` is running.
-- **ModuleNotFoundError: No module named 'src'**: When executing tests, ensure pytest is run as a module: `python -m pytest tests/unit`
-- **LLM Error**: If the Chatbot indicates connectivity issues, ensure the `GROQ_API_KEY` is valid and the model `llama-3.3-70b-versatile` is supported.
-
 ---
 
-## 6. Architecture Overview
-
-The system operates on a **4-Part Pipeline**:
-
-*   **Data Layer**: A Neo4j graph database storing a highly connected map of Sectors, Skills, Roles, and Courses.
-*   **Query Engine**: The `QueryService` (Python) executes exact deterministic mathematics. It uses Cypher to fetch subgraphs and Python to run Topological Sorting algorithms to calculate learning paths and skill gaps.
-*   **LLM Router**: The `LLMService` acts as an intelligent translation layer. It translates natural language input from the API, uses Groq (`llama-3.3-70b-versatile`) to extract structured intents, routes the request to the Query Engine, and then translates the mathematical result back into conversational English.
-*   **Visualization**: A completely decoupled `index.html` frontend that uses `vis-network` to visualize the mathematical outputs in real-time.
-
----
-
-## 7. Graph Schema Design Choices
+## 6. Graph Schema Design Choices
 
 Rather than using a relational table or storing arrays of IDs inside node properties, the data is modeled natively for deep graph traversal:
 
@@ -155,11 +139,11 @@ Rather than using a relational table or storing arrays of IDs inside node proper
     *   `(SkillTrack)-[:CONTAINS_SKILL]->(Skill)`
     *   `(Skill)-[:REQUIRED_BY]->(JobRole)`
     *   `(Course)-[:TEACHES]->(Skill)`
-    *   **(CRITICAL) `(Skill)-[:PREREQUISITE_OF]->(Skill)`**: By modeling prerequisites as explicit directional edges rather than string arrays, the ability to calculate recursive, deep dependency chains natively through graph traversal is enabled.
+    *   `(Skill)-[:PREREQUISITE_OF]->(Skill)`
 
 ---
 
-## 8. Query Logic & Algorithm Optimization
+## 7. Query Logic & Algorithm Optimization
 
 ### Why Python + Cypher?
 For complex graph traversal, a constrained subgraph is fetched using Cypher and the deep topology is processed in Python:
@@ -178,14 +162,14 @@ The priority of a skill gap is determined mathematically:
 
 ---
 
-## 9. LLM Architecture (Groq LLaMA-3)
+## 8. LLM Architecture (Groq LLaMA-3)
 
 **Why Groq?** 
 Groq's LPU infrastructure provides inference speeds of >800 tokens per second. For a synchronous Chat UI, this eliminates typical LLM latency, ensuring highly responsive interactions.
 
 **Two-Step Pipeline (Intent -> Execute -> Format)**
 Instead of utilizing frameworks like LangChain to allow the LLM to directly write and execute Cypher queries (which is slow, unpredictable, and poses significant security/hallucination risks), a deterministic two-step pipeline was implemented:
-1. **Strict JSON Extraction**: The LLM acts purely as an intent parser (`learning_path`, `gap_analysis`, `transferable_skills`, `find_courses`). A rigid JSON schema is strictly enforced.
+1. **Strict JSON Extraction**: The LLM acts purely as an intent parser (`learning_path`, `gap_analysis`, `transferable_skills`, `find_courses`). A rigid JSON schema is strictly enforced through pydantic.
 2. **Graph Execution**: Python executes safe, parameterized Cypher queries.
 3. **Friendly Formatting**: The raw JSON output from Neo4j is fed back into the LLM to generate a plain-English response.
 
@@ -194,7 +178,7 @@ Instead of fine-tuning a model to map terms like "Machine Learning" to the ID `S
 
 ---
 
-## 10. Design Decisions & Trade-offs (Beyond the Scope)
+## 9. Design Decisions & Trade-offs
 
 ### A. The `find_courses` Intent
 *   **The Decision**: A 4th, unrequested intent called `find_courses` was implemented.
@@ -214,21 +198,17 @@ Processing graph data in Python to calculate "Unlock Scores" increases data tran
 *   **The Decision**: Neo4j was selected over Python's in-memory NetworkX library.
 *   **Why**: NetworkX requires the entire dataset to be loaded into RAM upon every server restart and lacks a native querying language. Neo4j provides persistent storage, ACID compliance, native Cypher graph querying, and enterprise scalability suitable for future frameworks containing millions of nodes.
 
-### F. FastAPI vs. Traditional Frameworks (Flask/Django)
-*   **The Decision**: FastAPI was selected as the backend framework.
-*   **Why**: FastAPI provides native asynchronous routing and automatic Swagger UI generation. Crucially, its integration with Pydantic ensures strict type validation for incoming LLM intent JSONs before they are processed by the graph engine, eliminating malformed query errors.
-
 ---
 
-## 11. Scaling to the Full SkillsFuture Framework
+## 10. Scaling to the Full SkillsFuture Framework
 
-To scale this system to the full framework (38 Sectors, 119+ Job Roles, 80+ Skills), the following optimizations would be required:
+To scale this system to the full framework, the following optimizations would be required:
 
 1. **Transitioning to Vector Search (RAG)**:
-   Prompt injection hits token limits and degrades performance as vocabulary grows to thousands of elements. This would be replaced with a **Vector Database (e.g., Pinecone or Neo4j Vector Indexes)**. For queries such as "How to become a Data Scientist?", the text would be embedded, a cosine similarity search performed against the Role database to retrieve the closest `ROL-XX` ID, which is then passed to the Graph.
+   Prompt injection hits token limits and degrades performance as vocabulary grows to thousands of elements. This would be replaced with a **Vector Database (e.g., Pinecone or Neo4j Vector Indexes)**
 2. **Neo4j Indexing**:
    UNIQUE constraints on IDs have already been implemented (`CREATE CONSTRAINT role_id FOR (r:JobRole) REQUIRE r.id IS UNIQUE`). As data grows, composite indexes on `economy` and `seniority` would be added for faster filtering.
 3. **Caching Layer (Redis)**:
-   Learning paths for standard roles (e.g., "From Scratch to AI Engineer") are highly deterministic. A Redis cache layer would be introduced for the `/api/learning-path` endpoint to prevent recalculating the topological sort for identical, frequent queries.
+   Learning paths for standard roles are highly deterministic. A Redis cache layer would be introduced for the `/api/learning-path` endpoint to prevent recalculating the topological sort for identical, frequent queries.
 4. **Graph Partitioning**:
    As the dataset scales significantly, Neo4j Enterprise Edition features would be utilized to physically partition the graph by `Sector` across different physical drives or shards, accelerating economy-specific queries.
