@@ -1,8 +1,6 @@
 # Master Architecture & Design Document
 **Skills & Competency Graph System (HeyHi Assessment)**
 
-![Web Interface Demo](assets/WebInterface.png)
-
 This document serves as the comprehensive master guide to the project, consolidating setup instructions, API references, structural choices, advanced system architecture, algorithmic logic, trade-offs, and scaling strategies.
 
 ---
@@ -76,6 +74,8 @@ HeyHiAssessment/
    uvicorn api.main:app --reload
    ```
    Navigate to [http://localhost:8000](http://localhost:8000) to see the interactive Visualization & Chat app!
+
+![Web Interface Demo](assets/WebInterface.png)
 
 ---
 
